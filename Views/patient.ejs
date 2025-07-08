@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MedTrack – Patient Dashboard</title>
+  <style>
+    /* ==== Global Brand Styles (shared) ==== */
+    body{
+      font-family:Arial,sans-serif;margin:0;padding:0;color:#333;background:#f0f8f7;min-height:100vh;display:flex;flex-direction:column;
+    }
+    header{
+      background:#fff;padding:10px 20px;box-shadow:0 2px 5px rgba(0,0,0,.1);position:sticky;top:0;z-index:50;
+    }
+    /* simple flex header layout */
+    .header-inner{display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:auto;}
+    .logo{display:flex;align-items:center;gap:10px;font-size:24px;font-weight:bold;color:#007BFF;text-decoration:none;}
+
+    nav ul{list-style:none;margin:0;padding:0;display:flex;gap:20px;}
+    nav a{text-decoration:none;color:#007BFF;font-weight:500;}
+
+    /* ==== Layout ==== */
+    .sidebar{background:#fff;box-shadow:2px 0 5px rgba(0,0,0,.1);padding:20px;width:240px;position:fixed;top:0;left:0;height:100%;overflow-y:auto;}
+    .sidebar ul{list-style:none;padding:0;}
+    .sidebar li{margin-bottom:20px;}
+    .sidebar a,.sidebar button{color:#007BFF;text-decoration:none;font-weight:500;display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;}
+    .sidebar button{padding:0;}
+
+    .main{margin-left:260px;padding:30px;flex:1;}
+
+    .card{background:#fff;border-radius:10px;box-shadow:0 6px 15px rgba(0,0,0,.1);padding:25px;margin-bottom:30px;}
+    .card h2{font-size:18px;font-weight:bold;margin:0 0 15px 0;}
+
+    .btn{background:#007BFF;color:#fff;padding:10px 15px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;transition:.3s;}
+    .btn:hover{background:#0056b3;}
+
+    /* ==== Modal ==== */
+    .modal{display:none;position:fixed;inset:0;width:100%;height:100%;background:rgba(0,0,0,.5);justify-content:center;align-items:center;z-index:1000;}
+    .modal-content{background:#fff;border-radius:8px;width:90%;max-width:500px;padding:30px;box-shadow:0 5px 15px rgba(0,0,0,.3);}
+    .close-btn{background:none;border:none;font-size:24px;color:#999;cursor:pointer;}
+
+    .form-group{margin-bottom:15px;}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;}
+
+    /* utility */
+    .flex-between{display:flex;justify-content:space-between;align-items:center;}
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <img src="https://img.icons8.com/color/48/000000/medical-doctor.png" alt="MedTrack logo" width="30"/>
+        MedTrack
+      </a>
+      <span style="margin-left:auto;margin-right:20px;">Welcome, <%= patient.name %></span>
+      <div style="width:40px;height:40px;border-radius:50%;background:#007BFF;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;">
+        <%= patient.name.split(' ').map(n=>n[0]).join('') %>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <ul>
+      <li><a href="#">🗕 Appointments</a></li>
+      <li><a href="#">📋 Records</a></li>
+      <li><a href="#">💊 Prescriptions</a></li>
+      <li><a href="#">🏥 Doctors</a></li>
+      <li><a href="/dashboard">📊 Dashboard</a></li>
+      <li>
+        <form action="/logout" method="GET">
+          <button type="submit" style="color:red;gap:8px;">🚪 Logout</button>
+        </form>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <section class="card">
+      <div class="flex-between" style="margin-bottom:15px;">
+        <h2>Upcoming Appointments</h2>
+        <button class="btn" id="bookAppointmentBtn">+ Book</button>
+      </div>
+      <ul>
+        <% appointments.forEach(app=>{ %>
+        <li style="border-bottom:1px solid #ddd;padding:12px 0;">
+          <p style="font-weight:600;"> <%= app.doctorName %> – <%= app.specialty %></p>
+          <p style="font-size:14px;color:#666;"> <%= app.date %> at <%= app.time %></p>
+          <span style="font-size:14px;color:green;font-weight:500;"> <%= app.status %></span>
+        </li>
+        <% }); %>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Recent Prescriptions</h2>
+      <ul>
+        <% prescriptions.forEach(p=>{ %>
+        <li style="border-bottom:1px solid #ddd;padding:12px 0;">
+          <p><strong><%= p.doctorName %></strong> – <span style="font-size:14px;color:#666;"> <%= p.date %></span></p>
+          <p style="font-size:14px;color:#555;">Precautions: <%= p.precautions %></p>
+        </li>
+        <% }); %>
+      </ul>
+    </section>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="bookAppointmentModal">
+    <div class="modal-content">
+      <div class="flex-between" style="margin-bottom:20px;">
+        <h3 style="margin:0;font-size:18px;font-weight:bold;">Book Appointment</h3>
+        <button class="close-btn" id="closeModalBtn">&times;</button>
+      </div>
+      <form id="appointmentForm" method="POST" action="/patient/book">
+        <div class="form-group">
+          <select name="doctorId" required>
+            <option value="">Select Doctor</option>
+            <% doctors.forEach(doc=>{ %>
+            <option value="<%= doc.id %>"><%= doc.name %> (<%= doc.specialization %>)</option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-group"><input type="date" name="date" required></div>
+        <div class="form-group"><input type="time" name="time" required></div>
+        <div class="form-group"><textarea name="reason" placeholder="Reason" required></textarea></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button type="button" class="btn" style="background:#ccc;color:#000;" id="cancelAppointmentBtn">Cancel</button>
+          <button type="submit" class="btn">Book</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const sidebar=document.getElementById('sidebar');
+    const modal=document.getElementById('bookAppointmentModal');
+    const openBtn=document.getElementById('bookAppointmentBtn');
+    const closeBtn=document.getElementById('closeModalBtn');
+    const cancelBtn=document.getElementById('cancelAppointmentBtn');
+
+    openBtn.addEventListener('click',()=>{modal.style.display='flex';document.body.style.overflow='hidden';});
+    const closeModal=()=>{modal.style.display='none';document.body.style.overflow='auto';};
+    closeBtn.addEventListener('click',closeModal);
+    cancelBtn.addEventListener('click',closeModal);
+    window.addEventListener('click',e=>{if(e.target===modal)closeModal();});
+  </script>
+</body>
+</html>
